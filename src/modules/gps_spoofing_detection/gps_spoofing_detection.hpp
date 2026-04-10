@@ -4,6 +4,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <uORB/Publication.hpp>
+#include <uORB/PublicationMulti.hpp>
+#include <uORB/Subscription.hpp>
+#include <uORB/SubscriptionCallback.hpp>
+#include <uORB/topics/vehicle_optical_flow_vel.h>
+#include <uORB/topics/sensor_gps.h>
+
+
 class GpsSpoofingDetection
 {
 public:
@@ -13,19 +21,13 @@ public:
 	~GpsSpoofingDetection();
 
 	/**
-	 * Initialize the spoofing detection module
-	 * @return true if initialization successful
-	 */
-	bool init();
-
-	/**
 	 * Update with new GPS data and check for spoofing
 	 * @param latitude GPS latitude
 	 * @param longitude GPS longitude
 	 * @param accuracy GPS accuracy in meters
 	 * @return true if spoofing detected
 	 */
-	bool update(double latitude, double longitude, float accuracy);
+	bool update();
 
 	/**
 	 * Check if spoofing is currently detected
@@ -38,6 +40,9 @@ public:
 	 */
 	void reset();
 
+	bool checkForOpticalFlowEstimateUpdate();
+	bool checkForGPSUpdate();
+
 	/**
 	 * Set sensitivity threshold for detection
 	 * @param threshold sensitivity value (0.0 to 1.0)
@@ -45,13 +50,24 @@ public:
 	void set_sensitivity(float threshold);
 
 private:
-	bool _initialized;
 	bool _spoofing_detected;
 	float _sensitivity_threshold;
 	double _last_latitude;
 	double _last_longitude;
 	float _last_accuracy;
 	uint32_t _update_count;
+
+	float _of_vel_n{0.f};
+	float _of_vel_e{0.f};
+	float _gps_vel_n{0.f};
+	float _gps_vel_e{0.f};
+
+	bool _of_valid{false};
+	bool _gps_valid{false};
+
+	uORB::SubscriptionData<vehicle_optical_flow_vel_s> _vehicle_optical_flow_estimate_sub {ORB_ID(estimator_optical_flow_vel)};
+	uORB::SubscriptionData<sensor_gps_s> _vehicle_gps_position_sub {ORB_ID(sensor_gps)};
+
 
 	/**
 	 * Analyze GPS signal for anomalies
