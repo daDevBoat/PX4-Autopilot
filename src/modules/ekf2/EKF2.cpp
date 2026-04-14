@@ -884,6 +884,16 @@ void EKF2::Run()
 		_ekf2_timestamps_pub.publish(ekf2_timestamps);
 	}
 
+
+	//BACH: CHANGES MADE HERE
+	bool spoofed = _gps_spoofing_detection.update();
+	//PX4_INFO("GPS spoofing detection: %s", spoofed ? "spoofed" : "not spoofed");
+	if (spoofed) {
+		PX4_INFO("GPS spoofing detected, sending event");
+		mavlink_log_critical(&_mavlink_log_pub, "GPS spoofing detected\t");
+		events::send(events::ID("commander_gps_spoofing_detected"), events::Log::Critical, "GPS spoofing detected");
+	}
+
 	// re-schedule as backup timeout
 	ScheduleDelayed(100_ms);
 }
@@ -2206,6 +2216,9 @@ void EKF2::PublishOpticalFlowVel(const hrt_abstime &timestamp)
 {
 	const hrt_abstime timestamp_sample = _ekf.aid_src_optical_flow().timestamp_sample;
 
+	//PX4_INFO("Optical flow velocity sample timestamp: %" PRIu64, timestamp_sample);
+	//PX4_INFO("Last published optical flow velocity timestamp: %" PRIu64, _optical_flow_vel_pub_last);
+
 	if ((timestamp_sample != 0) && (timestamp_sample > _optical_flow_vel_pub_last)) {
 
 		vehicle_optical_flow_vel_s flow_vel{};
@@ -2226,6 +2239,8 @@ void EKF2::PublishOpticalFlowVel(const hrt_abstime &timestamp)
 		_ekf.getFlowRefBodyRate().copyTo(flow_vel.ref_gyro);
 
 		flow_vel.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
+
+		//PX4_INFO("Publishing optical flow velocity");
 
 		_estimator_optical_flow_vel_pub.publish(flow_vel);
 
