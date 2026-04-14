@@ -9,6 +9,7 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/vehicle_optical_flow_vel.h>
+#include <uORB/topics/vehicle_optical_flow.h>
 #include <uORB/topics/sensor_gps.h>
 
 
@@ -42,6 +43,9 @@ public:
 
 	bool checkForOpticalFlowEstimateUpdate();
 	bool checkForGPSUpdate();
+	bool checkForOpticalFlowUpdate();
+
+	float opticalFlowDistance(float ground_distance, float flow_x, float flow_y);
 
 	/**
 	 * Set sensitivity threshold for detection
@@ -57,14 +61,21 @@ private:
 	float _last_accuracy;
 	uint32_t _update_count;
 
-	float _of_vel_n{0.f};
-	float _of_vel_e{0.f};
+	float _flow_x{0.f};
+	float _flow_y{0.f};
+	float _ground_distance{0.f};
+	float _total_distance_flow{0.f};
 	float _gps_vel_n{0.f};
 	float _gps_vel_e{0.f};
 
+
+
 	bool _of_valid{false};
+	bool _ofe_valid{false};
 	bool _gps_valid{false};
 
+
+	uORB::SubscriptionData<vehicle_optical_flow_s> _vehicle_optical_flow_sub {ORB_ID(vehicle_optical_flow)};
 	uORB::SubscriptionData<vehicle_optical_flow_vel_s> _vehicle_optical_flow_estimate_sub {ORB_ID(estimator_optical_flow_vel)};
 	uORB::SubscriptionData<sensor_gps_s> _vehicle_gps_position_sub {ORB_ID(sensor_gps)};
 
@@ -73,7 +84,7 @@ private:
 	 * Analyze GPS signal for anomalies
 	 * @return true if anomalies detected
 	 */
-	bool analyze_signal();
+	bool analyzeSignal();
 };
 
 #endif // GPS_SPOOFING_DETECTION_HPP
