@@ -2,6 +2,7 @@
 #include "gps_spoofing_detection.hpp"
 #include <cmath>
 #include <drivers/drv_hrt.h>
+#include <cinttypes>
 
 
 GpsSpoofingDetection::GpsSpoofingDetection() :
@@ -52,7 +53,7 @@ bool GpsSpoofingDetection::checkForOpticalFlowUpdate() {
 		//save the filtered velocity information for use in comparison computation
 		_ground_distance = optical_flow.distance_m;
 				// process the optical flow estimate for spoofing detection
-
+		_opt_flow = optical_flow;
 		if(_ground_distance >= 9.8f) {
 			_reached_height = true;
 		}
@@ -90,10 +91,15 @@ bool GpsSpoofingDetection::update() {
 }
 
 float GpsSpoofingDetection::opticalFlowDistance(float ground_distance, float flow_x, float flow_y) {
-    float dt = (_optical_flow.timestamp_sample - _prev_optical_flow.timestamp_sample) / 1000000.0f;
-    float dx = ground_distance * flow_x * dt;
-    float dy = ground_distance * flow_y * dt;
+
+    //float dx = ground_distance * _opt_flow.pixel_flow[0];
+    //float dy = ground_distance * _opt_flow.pixel_flow[1];
+
+    float dx = ground_distance * (_opt_flow.pixel_flow[0] - _opt_flow.delta_angle[0]);
+    float dy = ground_distance * (_opt_flow.pixel_flow[1] - _opt_flow.delta_angle[1]);
     return sqrt(dx * dx + dy * dy);
+
+
 }
 
 double GpsSpoofingDetection::GPSDistance(double lon_a, double lat_a, double lon_b, double lat_b) {
@@ -140,8 +146,7 @@ bool GpsSpoofingDetection::analyzeSignal() {
 	_update_count++;
 
 	if (_reached_height && _do_once) {
-		PX4_INFO("HEEEEELOOOOO");
-		_total_distance_flow = 0.f;
+		_total_distance_flow = 0.0f;
 		_total_distance_gps = 0.0;
 		_do_once = false;
 	}
@@ -155,12 +160,12 @@ bool GpsSpoofingDetection::analyzeSignal() {
 		_total_distance_flow += of_distance;
 
 		double gps_distance = GpsSpoofingDetection::GPSDistance(_prev_gps.longitude_deg, _prev_gps.latitude_deg, _gps.longitude_deg, _gps.latitude_deg);
-		_total_distance_gps += gps_distance;
+		_total_distance_gps += gps_distance; //- (_gps.timestamp_sample - _prev_gps.timestamp_sample) * (double)_gps.s_variance_m_s;
 
-		if (_update_count % 5 == 0) {
-			PX4_INFO("flow_x: %f, flow_y: %f, ground_distance: %f, flow_dist: %f", (double) _flow_x, (double) _flow_y, (double) _ground_distance, (double) _total_distance_flow);
+		//if (_update_count % 5 == 0) {
+			PX4_INFO("fx: %f, fy: %f, ground_distance: %f, quaility: %u, flow_dist: %f", (double) _opt_flow.pixel_flow[0], (double) _opt_flow.pixel_flow[1], (double) _ground_distance, (unsigned) _opt_flow.quality, (double) _total_distance_flow);
 			PX4_INFO("lon_a: %f, lat_a: %f, lon_b: %f, lat_b: %f, gps_dist: %f", (double) _prev_gps.longitude_deg, (double) _prev_gps.latitude_deg, (double) _gps.longitude_deg, (double) _gps.latitude_deg, (double) _total_distance_gps);
-		}
+		//}
 
 	}
 
