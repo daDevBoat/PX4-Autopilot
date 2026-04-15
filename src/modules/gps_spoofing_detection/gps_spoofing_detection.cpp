@@ -91,13 +91,13 @@ bool GpsSpoofingDetection::update() {
 }
 
 float GpsSpoofingDetection::opticalFlowDistance(float ground_distance, float flow_x, float flow_y) {
+    float dt = (_optical_flow.timestamp_sample - _prev_optical_flow.timestamp_sample) / 1000000.0f;
+    float dx = (_optical_flow.vel_ne_filtered[0]);
+    float dy = (_optical_flow.vel_ne_filtered[1]);
 
-    //float dx = ground_distance * _opt_flow.pixel_flow[0];
-    //float dy = ground_distance * _opt_flow.pixel_flow[1];
-
-    float dx = ground_distance * (_opt_flow.pixel_flow[0] - _opt_flow.delta_angle[0]);
-    float dy = ground_distance * (_opt_flow.pixel_flow[1] - _opt_flow.delta_angle[1]);
-    return sqrt(dx * dx + dy * dy);
+    //float dx = ground_distance * (_opt_flow.pixel_flow[0] - _opt_flow.delta_angle[0]);
+    //float dy = ground_distance * (_opt_flow.pixel_flow[1] - _opt_flow.delta_angle[1]);
+    return sqrt(dx * dx + dy * dy) * dt;
 
 
 }
@@ -113,22 +113,6 @@ double GpsSpoofingDetection::GPSDistance(double lon_a, double lat_a, double lon_
     double sin_lon = sin((lon_a_rad - lon_b_rad) / 2);
     double p = (sin_lat * sin_lat) + cos(lat_a_rad) * cos(lat_b_rad) * (sin_lon * sin_lon);
     return (2 * CONSTANTS_RADIUS_OF_EARTH * asin(sqrt(p)));
-}
-
-float GpsSpoofingDetection::GPSDistance2(float lon_a, float lat_a, float lon_b, float lat_b) {
-    float pi = (float) M_PI;
-    const float R = (float) CONSTANTS_RADIUS_OF_EARTH;
-    float phi1 = lat_a * pi / 180.0f;
-    float phi2 = lat_b * pi / 180.0f;
-    float delta_phi = (lat_b - lat_a) * pi / 180.0f;
-    float delta_lambda = (lon_b - lon_a) * pi / 180.0f;
-
-    float a = sin(delta_phi / 2) * sin(delta_phi / 2) +
-               cos(phi1) * cos(phi2) *
-               sin(delta_lambda / 2) * sin(delta_lambda / 2);
-    float c = 2 * atan2(sqrt(a), sqrt(1 - a));
-
-    return R * c; // Distance in meters
 }
 
 
