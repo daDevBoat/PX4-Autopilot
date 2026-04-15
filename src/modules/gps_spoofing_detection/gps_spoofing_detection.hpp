@@ -11,6 +11,7 @@
 #include <uORB/topics/vehicle_optical_flow_vel.h>
 #include <uORB/topics/vehicle_optical_flow.h>
 #include <uORB/topics/sensor_gps.h>
+#include <lib/geo/geo.h>
 
 
 class GpsSpoofingDetection
@@ -46,6 +47,9 @@ public:
 	bool checkForOpticalFlowUpdate();
 
 	float opticalFlowDistance(float ground_distance, float flow_x, float flow_y);
+	double GPSDistance(double lon_a, double lat_a, double lon_b, double lat_b);
+	float GPSDistance2(float lon_a, float lat_a, float lon_b, float lat_b);
+
 
 	/**
 	 * Set sensitivity threshold for detection
@@ -65,10 +69,18 @@ private:
 	float _flow_y{0.f};
 	float _ground_distance{0.f};
 	float _total_distance_flow{0.f};
-	float _gps_vel_n{0.f};
-	float _gps_vel_e{0.f};
+	double _total_distance_gps{0.f};
 
+	sensor_gps_s _gps{};
+	sensor_gps_s _prev_gps{};
 
+	vehicle_optical_flow_s _opt_flow{};
+
+	vehicle_optical_flow_vel_s _optical_flow{};
+	vehicle_optical_flow_vel_s _prev_optical_flow{};
+
+	bool _reached_height = false;
+	bool _do_once = true;
 
 	bool _of_valid{false};
 	bool _ofe_valid{false};
