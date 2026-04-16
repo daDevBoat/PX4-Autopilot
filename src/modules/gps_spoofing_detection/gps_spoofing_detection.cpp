@@ -50,13 +50,8 @@ bool GpsSpoofingDetection::checkForOpticalFlowUpdate() {
 
 	if (_vehicle_optical_flow_sub.update()) {
 		const vehicle_optical_flow_s &optical_flow = _vehicle_optical_flow_sub.get();
-		//save the filtered velocity information for use in comparison computation
 		_ground_distance = optical_flow.distance_m;
-				// process the optical flow estimate for spoofing detection
 		_opt_flow = optical_flow;
-		if(_ground_distance >= 9.8f) {
-			_reached_height = true;
-		}
 		_of_valid = true;
 
 		return true;
@@ -80,6 +75,16 @@ bool GpsSpoofingDetection::checkForGPSUpdate() {
 		_gps = gps;
 		_gps_valid = true;
 
+		return true;
+	}
+	return false;
+}
+
+bool GpsSpoofingDetection::checkForMissionResultUpdate() {
+
+	if (_mission_result_sub.update()) {
+		const mission_result_s &result = _mission_result_sub.get();
+		_mission_result = result;
 		return true;
 	}
 	return false;
@@ -126,6 +131,14 @@ bool GpsSpoofingDetection::analyzeSignal() {
 	GpsSpoofingDetection::checkForOpticalFlowEstimateUpdate();
 	GpsSpoofingDetection::checkForOpticalFlowUpdate();
 	GpsSpoofingDetection::checkForGPSUpdate();
+	GpsSpoofingDetection::checkForMissionResultUpdate();
+
+	// If first step is done (should be takeoff to certain height)
+	if (_mission_result.timestamp > 0 && _mission_result.seq_reached == 0 && _do_once) {
+		_total_distance_flow = 0.0f;
+		_total_distance_gps = 0.0;
+		_do_once = false;
+	}
 
 	_update_count++;
 
@@ -147,8 +160,8 @@ bool GpsSpoofingDetection::analyzeSignal() {
 		_total_distance_gps += gps_distance; //- (_gps.timestamp_sample - _prev_gps.timestamp_sample) * (double)_gps.s_variance_m_s;
 
 		//if (_update_count % 5 == 0) {
-			PX4_INFO("fx: %f, fy: %f, ground_distance: %f, quaility: %u, flow_dist: %f", (double) _opt_flow.pixel_flow[0], (double) _opt_flow.pixel_flow[1], (double) _ground_distance, (unsigned) _opt_flow.quality, (double) _total_distance_flow);
-			PX4_INFO("lon_a: %f, lat_a: %f, lon_b: %f, lat_b: %f, gps_dist: %f", (double) _prev_gps.longitude_deg, (double) _prev_gps.latitude_deg, (double) _gps.longitude_deg, (double) _gps.latitude_deg, (double) _total_distance_gps);
+			PX4_INFO("\nfx: %f, fy: %f, ground_distance: %f, quaility: %u, flow_dist: %f", (double) _opt_flow.pixel_flow[0], (double) _opt_flow.pixel_flow[1], (double) _ground_distance, (unsigned) _opt_flow.quality, (double) _total_distance_flow);
+			PX4_INFO("lon_a: %f, lat_a: %f, lon_b: %f, lat_b: %f, gps_dist: %f\n", (double) _prev_gps.longitude_deg, (double) _prev_gps.latitude_deg, (double) _gps.longitude_deg, (double) _gps.latitude_deg, (double) _total_distance_gps);
 		//}
 
 	}
