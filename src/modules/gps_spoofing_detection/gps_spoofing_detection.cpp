@@ -142,11 +142,6 @@ bool GpsSpoofingDetection::analyzeSignal() {
 
 	_update_count++;
 
-	if (_reached_height && _do_once) {
-		_total_distance_flow = 0.0f;
-		_total_distance_gps = 0.0;
-		_do_once = false;
-	}
 
 	//PX4_INFO(_of_valid ? "OF valid" : "OF not valid");
 	//PX4_INFO(_gps_valid ? "GPS valid" : "GPS not valid");
@@ -156,14 +151,21 @@ bool GpsSpoofingDetection::analyzeSignal() {
 		float of_distance = GpsSpoofingDetection::opticalFlowDistance(_ground_distance, _flow_x, _flow_y);
 		_total_distance_flow += of_distance;
 
-		double gps_distance = GpsSpoofingDetection::GPSDistance(_prev_gps.longitude_deg, _prev_gps.latitude_deg, _gps.longitude_deg, _gps.latitude_deg);
-		_total_distance_gps += gps_distance; //- (_gps.timestamp_sample - _prev_gps.timestamp_sample) * (double)_gps.s_variance_m_s;
+		if (_gps.vel_m_s > 0.1f) {
+			double gps_distance = GpsSpoofingDetection::GPSDistance(_prev_gps.longitude_deg, _prev_gps.latitude_deg, _gps.longitude_deg, _gps.latitude_deg);
+			_total_distance_gps += gps_distance;
+		}
+
 
 		//if (_update_count % 5 == 0) {
-			PX4_INFO("\nfx: %f, fy: %f, ground_distance: %f, quaility: %u, flow_dist: %f", (double) _opt_flow.pixel_flow[0], (double) _opt_flow.pixel_flow[1], (double) _ground_distance, (unsigned) _opt_flow.quality, (double) _total_distance_flow);
-			PX4_INFO("lon_a: %f, lat_a: %f, lon_b: %f, lat_b: %f, gps_dist: %f\n", (double) _prev_gps.longitude_deg, (double) _prev_gps.latitude_deg, (double) _gps.longitude_deg, (double) _gps.latitude_deg, (double) _total_distance_gps);
+			PX4_INFO("fx: %f, fy: %f, ground_distance: %f, quaility: %u, flow_dist: %f", (double) _opt_flow.pixel_flow[0], (double) _opt_flow.pixel_flow[1], (double) _ground_distance, (unsigned) _opt_flow.quality, (double) _total_distance_flow);
+			PX4_INFO("vel: %f, gps_dist: %f\n\n", (double) _gps.vel_m_s, (double) _total_distance_gps);
 		//}
 
+	}
+
+	if (abs(_total_distance_gps - (double) _total_distance_flow) > 10) {
+		PX4_ERR("GPS SPOOFING DETECTED");
 	}
 
 	return false;
