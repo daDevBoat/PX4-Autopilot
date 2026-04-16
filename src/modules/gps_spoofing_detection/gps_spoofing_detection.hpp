@@ -35,6 +35,7 @@ public:
 	bool checkForOpticalFlowVelUpdate();
 	bool checkForGPSUpdate();
 	bool checkForMissionResultUpdate();
+	bool CUSUM(double of_distance, double gps_distance);
 
 	bool SSDGOF();
 
@@ -65,6 +66,10 @@ private:
 
 	bool _ofv_valid{false};
 	bool _gps_valid{false};
+
+	double s_pos{0.0};
+	double s_neg{0.0};
+
 
 	uORB::SubscriptionData<vehicle_optical_flow_vel_s> _vehicle_optical_flow_vel_sub {ORB_ID(estimator_optical_flow_vel)};
 	uORB::SubscriptionData<sensor_gps_s> _vehicle_gps_position_sub {ORB_ID(sensor_gps)};

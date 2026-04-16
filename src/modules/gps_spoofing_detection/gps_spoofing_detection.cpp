@@ -95,6 +95,25 @@ bool GpsSpoofingDetection::SSDGOF() {
 	}
 	return false;
 }
+bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
+	double diff = of_distance - gps_distance;
+	double baseline_diff = 0;
+	double k = 0.05; // smaller k = faster detection, more false alarms
+	double thresh = 1.5; // smaller threshold = faster detection, more false
+
+	PX4_INFO("CUSUM diff: %f", diff);
+
+	s_pos = std::max(0.0, s_pos + diff - baseline_diff - k);
+	s_neg = std::max(0.0, s_neg - diff + baseline_diff - k);
+
+	PX4_INFO("CUSUM s_pos: %f, s_neg: %f", s_pos, s_neg);
+
+	if (s_pos > thresh || s_neg > thresh) {
+		return true; // spoofing detected
+	}
+	return false; // no spoofing detected
+}
+
 
 
 bool GpsSpoofingDetection::analyzeSignal() {
@@ -119,13 +138,16 @@ bool GpsSpoofingDetection::analyzeSignal() {
 		if (_gps.vel_m_s > 0.1f) {
 			double gps_distance = GpsSpoofingDetection::GPSDistance(_prev_gps.longitude_deg, _prev_gps.latitude_deg, _gps.longitude_deg, _gps.latitude_deg);
 			_total_distance_gps += gps_distance;
+
+			// CUSUM test
+			if ((CUSUM(of_distance, gps_distance))) {
+				PX4_ERR("CUSUM GPS SPOOFING DETECTED");
+			}
 		}
 
 
-		//if (_update_count % 2 == 0) {
-			PX4_INFO("fx_vel: %f, fy_vel: %f, flow_dist: %f", (double) _optical_flow.vel_ne_filtered[0], (double) _optical_flow.vel_ne_filtered[1], (double) _total_distance_flow);
-			PX4_INFO("vel: %f, gps_dist: %f\n\n", (double) _gps.vel_m_s, (double) _total_distance_gps);
-		//}
+		PX4_INFO("fx_vel: %f, fy_vel: %f, flow_dist: %f", (double) _optical_flow.vel_ne_filtered[0], (double) _optical_flow.vel_ne_filtered[1], (double) _total_distance_flow);
+		PX4_INFO("vel: %f, gps_dist: %f\n\n", (double) _gps.vel_m_s, (double) _total_distance_gps);
 
 	}
 
