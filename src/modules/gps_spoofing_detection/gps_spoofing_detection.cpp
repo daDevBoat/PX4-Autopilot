@@ -7,52 +7,25 @@
 
 GpsSpoofingDetection::GpsSpoofingDetection() :
 	_spoofing_detected(false),
-	_sensitivity_threshold(0.5f),
-	_last_latitude(0.0),
-	_last_longitude(0.0),
-	_last_accuracy(0.0f),
+	_sensitivity_threshold(10.0),
 	_update_count(0)
 {
-	//_vehicle_gps_position_sub.set_interval_ms(200);
-	//_vehicle_optical_flow_estimate_sub.set_interval_ms(200);
-	//_vehicle_optical_flow_sub.set_interval_ms(200);
-
 }
 
 GpsSpoofingDetection::~GpsSpoofingDetection() = default;
 
 // input for optical flow sensor information
-bool GpsSpoofingDetection::checkForOpticalFlowEstimateUpdate() {
+bool GpsSpoofingDetection::checkForOpticalFlowVelUpdate() {
 
-	if (_vehicle_optical_flow_estimate_sub.update()) {
-		const vehicle_optical_flow_vel_s &optical_flow_estimate = _vehicle_optical_flow_estimate_sub.get();
-		//save the filtered velocity information for use in comparison computation
-		_flow_x = optical_flow_estimate.flow_rate_compensated[0];
-		_flow_y = optical_flow_estimate.flow_rate_compensated[1];
-
+	if (_vehicle_optical_flow_vel_sub.update()) {
+		const vehicle_optical_flow_vel_s &optical_flow_estimate = _vehicle_optical_flow_vel_sub.get();
 		if (_prev_optical_flow.timestamp_sample == 0) {
 			_prev_optical_flow = optical_flow_estimate;
 		} else {
 			_prev_optical_flow = _optical_flow;
 		}
-
 		_optical_flow = optical_flow_estimate;
-
-		_ofe_valid = true;
-
-		return true;
-	}
-
-	return false;
-}
-
-bool GpsSpoofingDetection::checkForOpticalFlowUpdate() {
-
-	if (_vehicle_optical_flow_sub.update()) {
-		const vehicle_optical_flow_s &optical_flow = _vehicle_optical_flow_sub.get();
-		_ground_distance = optical_flow.distance_m;
-		_opt_flow = optical_flow;
-		_of_valid = true;
+		_ofv_valid = true;
 
 		return true;
 	}
@@ -71,7 +44,6 @@ bool GpsSpoofingDetection::checkForGPSUpdate() {
 		} else {
 			_prev_gps = _gps;
 		}
-
 		_gps = gps;
 		_gps_valid = true;
 
@@ -81,7 +53,6 @@ bool GpsSpoofingDetection::checkForGPSUpdate() {
 }
 
 bool GpsSpoofingDetection::checkForMissionResultUpdate() {
-
 	if (_mission_result_sub.update()) {
 		const mission_result_s &result = _mission_result_sub.get();
 		_mission_result = result;
@@ -95,13 +66,10 @@ bool GpsSpoofingDetection::update() {
 	return _spoofing_detected;
 }
 
-float GpsSpoofingDetection::opticalFlowDistance(float ground_distance, float flow_x, float flow_y) {
+float GpsSpoofingDetection::opticalFlowDistance() {
     float dt = (_optical_flow.timestamp_sample - _prev_optical_flow.timestamp_sample) / 1000000.0f;
     float dx = (_optical_flow.vel_ne_filtered[0]);
     float dy = (_optical_flow.vel_ne_filtered[1]);
-
-    //float dx = ground_distance * (_opt_flow.pixel_flow[0] - _opt_flow.delta_angle[0]);
-    //float dy = ground_distance * (_opt_flow.pixel_flow[1] - _opt_flow.delta_angle[1]);
     return sqrt(dx * dx + dy * dy) * dt;
 
 
@@ -120,6 +88,13 @@ double GpsSpoofingDetection::GPSDistance(double lon_a, double lat_a, double lon_
     return (2 * CONSTANTS_RADIUS_OF_EARTH * asin(sqrt(p)));
 }
 
+bool GpsSpoofingDetection::SSDGOF() {
+	if (abs(_total_distance_gps - (double) _total_distance_flow) > _sensitivity_threshold) {
+		PX4_ERR("GPS SPOOFING DETECTED");
+		return true;
+	}
+	return false;
+}
 
 
 bool GpsSpoofingDetection::analyzeSignal() {
@@ -128,27 +103,17 @@ bool GpsSpoofingDetection::analyzeSignal() {
 	}
 
 
-	GpsSpoofingDetection::checkForOpticalFlowEstimateUpdate();
-	GpsSpoofingDetection::checkForOpticalFlowUpdate();
+	GpsSpoofingDetection::checkForOpticalFlowVelUpdate();
 	GpsSpoofingDetection::checkForGPSUpdate();
 	GpsSpoofingDetection::checkForMissionResultUpdate();
 
-	// If first step is done (should be takeoff to certain height)
-	if (_mission_result.timestamp > 0 && _mission_result.seq_reached == 0 && _do_once) {
-		_total_distance_flow = 0.0f;
-		_total_distance_gps = 0.0;
-		_do_once = false;
-	}
 
 	_update_count++;
 
 
-	//PX4_INFO(_of_valid ? "OF valid" : "OF not valid");
-	//PX4_INFO(_gps_valid ? "GPS valid" : "GPS not valid");
+	if (_ofv_valid && _gps_valid) {
 
-	if (_ofe_valid && _of_valid && _gps_valid) {
-
-		float of_distance = GpsSpoofingDetection::opticalFlowDistance(_ground_distance, _flow_x, _flow_y);
+		float of_distance = GpsSpoofingDetection::opticalFlowDistance();
 		_total_distance_flow += of_distance;
 
 		if (_gps.vel_m_s > 0.1f) {
@@ -157,25 +122,15 @@ bool GpsSpoofingDetection::analyzeSignal() {
 		}
 
 
-		//if (_update_count % 5 == 0) {
-			PX4_INFO("fx: %f, fy: %f, ground_distance: %f, quaility: %u, flow_dist: %f", (double) _opt_flow.pixel_flow[0], (double) _opt_flow.pixel_flow[1], (double) _ground_distance, (unsigned) _opt_flow.quality, (double) _total_distance_flow);
+		//if (_update_count % 2 == 0) {
+			PX4_INFO("fx_vel: %f, fy_vel: %f, flow_dist: %f", (double) _optical_flow.vel_ne_filtered[0], (double) _optical_flow.vel_ne_filtered[1], (double) _total_distance_flow);
 			PX4_INFO("vel: %f, gps_dist: %f\n\n", (double) _gps.vel_m_s, (double) _total_distance_gps);
 		//}
 
 	}
 
-	if (abs(_total_distance_gps - (double) _total_distance_flow) > 10) {
-		PX4_ERR("GPS SPOOFING DETECTED");
-	}
+	_spoofing_detected = GpsSpoofingDetection::SSDGOF();
 
 	return false;
 }
 
-void GpsSpoofingDetection::reset() {
-	_spoofing_detected = false;
-	_update_count = 0;
-}
-
-bool GpsSpoofingDetection::is_spoofing_detected() const {
-	return _spoofing_detected;
-}
