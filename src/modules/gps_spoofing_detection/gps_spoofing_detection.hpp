@@ -35,12 +35,15 @@ public:
 	bool checkForOpticalFlowVelUpdate();
 	bool checkForGPSUpdate();
 	bool checkForMissionResultUpdate();
-	bool CUSUM(double of_distance, double gps_distance);
+	bool checkForOpticalFlowUpdate();
 
+	bool CUSUM(double of_distance, double gps_distance);
 	bool SSDGOF();
 
 
 	float opticalFlowDistance();
+	float opticalFlowDistance2();
+	float opticalFlowDistance3();	
 	double GPSDistance(double lon_a, double lat_a, double lon_b, double lat_b);
 
 
@@ -59,11 +62,14 @@ private:
 	sensor_gps_s _gps{};
 	sensor_gps_s _prev_gps{};
 
+	vehicle_optical_flow_s _raw_optical_flow{};
+
 	vehicle_optical_flow_vel_s _optical_flow{};
 	vehicle_optical_flow_vel_s _prev_optical_flow{};
 
 	mission_result_s _mission_result{};
 
+	bool _of_valid{false};
 	bool _ofv_valid{false};
 	bool _gps_valid{false};
 
@@ -71,6 +77,7 @@ private:
 	double s_neg{0.0};
 
 
+	uORB::SubscriptionData<vehicle_optical_flow_s> _vehicle_optical_flow_sub {ORB_ID(vehicle_optical_flow)};
 	uORB::SubscriptionData<vehicle_optical_flow_vel_s> _vehicle_optical_flow_vel_sub {ORB_ID(estimator_optical_flow_vel)};
 	uORB::SubscriptionData<sensor_gps_s> _vehicle_gps_position_sub {ORB_ID(sensor_gps)};
 	uORB::SubscriptionData<mission_result_s> _mission_result_sub {ORB_ID(mission_result)};
