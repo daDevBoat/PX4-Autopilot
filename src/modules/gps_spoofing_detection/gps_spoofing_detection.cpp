@@ -101,6 +101,24 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	double k = 0.05; // smaller k = faster detection, more false alarms
 	double thresh = 1.5; // smaller threshold = faster detection, more false
 
+	// LOGGING 
+	/*const char *path = "/home/isabella-lopiano/bachelor-project/PX4-Autopilot/gps_spoofing_log.csv";
+
+	FILE *fp = fopen(path, "a");
+
+	if (fp == nullptr) {
+		PX4_ERR("Failed to open %s", path);
+		return false;
+	}
+
+	fprintf(fp, "%.6f,%.6f,%.6f\n",
+		of_distance,
+		gps_distance,
+		diff);
+
+	fclose(fp);
+	*/
+
 	PX4_INFO("CUSUM diff: %f", diff);
 
 	s_pos = std::max(0.0, s_pos + diff - baseline_diff - k);
