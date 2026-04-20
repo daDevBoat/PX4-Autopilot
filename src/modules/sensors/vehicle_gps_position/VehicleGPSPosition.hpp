@@ -44,6 +44,7 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/gps_spoofing_status.h>
 #include <uORB/topics/sensor_gps.h>
 #include <uORB/topics/pps_capture.h>
 
@@ -84,6 +85,10 @@ private:
 	uORB::Publication<sensor_gps_s> _vehicle_gps_position_pub{ORB_ID(vehicle_gps_position)};
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+
+	//BACH: CHANGES MADE HERE
+	uORB::Subscription _gps_spoofing_status_sub{ORB_ID(gps_spoofing_status)};
+	gps_spoofing_status_s _gps_spoofing_status{};
 
 	uORB::SubscriptionCallbackWorkItem _sensor_gps_sub[GPS_MAX_RECEIVERS] {	/**< sensor data subscription */
 		{this, ORB_ID(sensor_gps), 0},

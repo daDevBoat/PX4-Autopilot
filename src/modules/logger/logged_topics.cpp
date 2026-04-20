@@ -77,6 +77,8 @@ void LoggedTopics::add_default_topics()
 	add_topic("gimbal_manager_set_attitude", 500);
 	add_optional_topic("generator_status");
 	add_topic("gps_dump");
+	//BACH: CHANGES MADE HERE
+	add_optional_topic("gps_spoofing_status", 100);
 	add_optional_topic("gimbal_controls", 200);
 	add_optional_topic("gripper");
 	add_optional_topic_multi("heater_status");
