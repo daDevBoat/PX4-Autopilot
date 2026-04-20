@@ -23,13 +23,6 @@ public:
 	GpsSpoofingDetection();
 	~GpsSpoofingDetection();
 
-	/**
-	 * Update with new GPS data and check for spoofing
-	 * @param latitude GPS latitude
-	 * @param longitude GPS longitude
-	 * @param accuracy GPS accuracy in meters
-	 * @return true if spoofing detected
-	 */
 	bool update();
 
 	bool checkForOpticalFlowVelUpdate();
@@ -39,10 +32,12 @@ public:
 
 	bool SSDGOF();
 
+	double* getFloatPosition();
 
 	float opticalFlowDistance();
 	double GPSDistance(double lon_a, double lat_a, double lon_b, double lat_b);
 
+	void calculateFlowPosition();
 
 	void set_sensitivity(double threshold);
 
@@ -55,6 +50,12 @@ private:
 
 	float _total_distance_flow{0.f};
 	double _total_distance_gps{0.f};
+
+	sensor_gps_s _initial_gps{};
+
+	double _flow_lon_deg{1000.0};
+	double _flow_lat_deg{1000.0};
+
 
 	sensor_gps_s _gps{};
 	sensor_gps_s _prev_gps{};

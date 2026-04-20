@@ -41,6 +41,7 @@ bool GpsSpoofingDetection::checkForGPSUpdate() {
 
 		if (_prev_gps.timestamp == 0) {
 			_prev_gps = gps;
+			_initial_gps = gps;
 		} else {
 			_prev_gps = _gps;
 		}
@@ -114,6 +115,43 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	return false; // no spoofing detected
 }
 
+void::GpsSpoofingDetection::calculateFlowPosition() {
+	if (_flow_lat_deg > 360 && _flow_lon_deg > 360) {
+		if (_initial_gps.timestamp == 0) {
+			return;
+		}
+		_flow_lat_deg = _initial_gps.latitude_deg;
+		_flow_lon_deg = _initial_gps.longitude_deg;
+	}
+
+	float vel_x = _optical_flow.vel_ne_filtered[0];
+	float vel_y = _optical_flow.vel_ne_filtered[1];
+
+	if (vel_x <= 0.1f) {
+		vel_x = 0.0f;
+	}
+
+	if (vel_y <= 0.1f) {
+		vel_y = 0.0f;
+	}
+
+	double dt = (_optical_flow.timestamp_sample - _prev_optical_flow.timestamp_sample) / 1000000.0f;
+	double dx = ((double) vel_x) * dt;
+	double dy = ((double) vel_y) * dt;
+
+	// Convert from meters to degrees
+	double delta_lat = (dx / CONSTANTS_RADIUS_OF_EARTH) * (180.0 / M_PI);
+	double delta_lon = (dy / (CONSTANTS_RADIUS_OF_EARTH * cos(_flow_lat_deg * M_PI / 180.0))) * (180.0 / M_PI);
+
+	_flow_lat_deg += delta_lat;
+	_flow_lon_deg += delta_lon;
+}
+
+double* GpsSpoofingDetection::getFloatPosition() {
+	float flow_pos[2] = {_flow_lat_deg, _flow_lon_deg};
+	return flow_pos;
+}
+
 
 
 bool GpsSpoofingDetection::analyzeSignal() {
@@ -129,9 +167,11 @@ bool GpsSpoofingDetection::analyzeSignal() {
 
 	_update_count++;
 
+	if (_ofv_valid) {
+		GpsSpoofingDetection::calculateFlowPosition();
+	}
 
 	if (_ofv_valid && _gps_valid) {
-
 		float of_distance = GpsSpoofingDetection::opticalFlowDistance();
 		_total_distance_flow += of_distance;
 
@@ -143,11 +183,16 @@ bool GpsSpoofingDetection::analyzeSignal() {
 			if ((CUSUM(of_distance, gps_distance))) {
 				PX4_ERR("CUSUM GPS SPOOFING DETECTED");
 			}
+
+			PX4_INFO("gps_lat: %f, gps_lon: %f", _gps.latitude_deg, _gps.longitude_deg);
+			PX4_INFO("flow_lat: %f, flow_lon: %f", _flow_lat_deg, _flow_lon_deg);
+			PX4_INFO("diff_lat: %f, diff_lon: %f", _gps.latitude_deg - _flow_lat_deg, _gps.longitude_deg - _flow_lon_deg);
 		}
 
 
 		PX4_INFO("fx_vel: %f, fy_vel: %f, flow_dist: %f", (double) _optical_flow.vel_ne_filtered[0], (double) _optical_flow.vel_ne_filtered[1], (double) _total_distance_flow);
 		PX4_INFO("vel: %f, gps_dist: %f\n\n", (double) _gps.vel_m_s, (double) _total_distance_gps);
+
 
 	}
 
