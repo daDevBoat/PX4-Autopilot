@@ -14,16 +14,18 @@ class GpsSpoofingRecovery
 {
 public:
 
-	GpsSpoofingRecovery(const GpsSpoofingDetection &gps_spoofing_detection);
+	GpsSpoofingRecovery(GpsSpoofingDetection &gps_spoofing_detection);
 	~GpsSpoofingRecovery();
 
 	bool update();
+	void publishAuxGlobalPosition();
 
 
 private:
-	const GpsSpoofingDetection &_gps_spoofing_detection;
+	GpsSpoofingDetection &_gps_spoofing_detection;
 	bool _gps_disabled{false};
 
+	uORB::PublicationMulti<aux_global_position_s> _aux_global_position_pub{ORB_ID(aux_global_position)};
 };
 
 #endif // GPS_SPOOFING_RECOVERY_HPP

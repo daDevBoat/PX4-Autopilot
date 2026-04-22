@@ -71,6 +71,8 @@ private:
 	double s_pos{0.0};
 	double s_neg{0.0};
 
+	double _flow_pos[2];
+
 
 	uORB::SubscriptionData<vehicle_optical_flow_vel_s> _vehicle_optical_flow_vel_sub {ORB_ID(estimator_optical_flow_vel)};
 	uORB::SubscriptionData<sensor_gps_s> _vehicle_gps_position_sub {ORB_ID(sensor_gps)};
