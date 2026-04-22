@@ -268,6 +268,9 @@ px4_add_module(
 		EKF2Selector.cpp
 		EKF2Selector.hpp
 		../gps_spoofing_detection/gps_spoofing_detection.cpp
+		../gps_spoofing_detection/gps_spoofing_detection.hpp
+		../gps_spoofing_recovery/gps_spoofing_recovery.cpp
+		../gps_spoofing_recovery/gps_spoofing_recovery.hpp
 
 		${EKF_GENERATED_FILES}
 

@@ -90,6 +90,7 @@
 #include <uORB/topics/yaw_estimator_status.h>
 
 #include <modules/gps_spoofing_detection/gps_spoofing_detection.hpp>
+#include <modules/gps_spoofing_recovery/gps_spoofing_recovery.hpp>
 
 #if defined(CONFIG_EKF2_AIRSPEED)
 # include <uORB/topics/airspeed.h>
@@ -178,6 +179,7 @@ private:
 	void PublishAttitude(const hrt_abstime &timestamp);
 
 	GpsSpoofingDetection _gps_spoofing_detection;
+	GpsSpoofingRecovery _gps_spoofing_recovery{_gps_spoofing_detection};
 
 #if defined(CONFIG_EKF2_BAROMETER)
 	void PublishBaroBias(const hrt_abstime &timestamp);

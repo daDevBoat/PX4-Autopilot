@@ -887,11 +887,9 @@ void EKF2::Run()
 
 	//BACH: CHANGES MADE HERE
 	bool spoofed = _gps_spoofing_detection.update();
-	//PX4_INFO("GPS spoofing detection: %s", spoofed ? "spoofed" : "not spoofed");
+
 	if (spoofed) {
-		PX4_INFO("GPS spoofing detected, sending event");
-		mavlink_log_critical(&_mavlink_log_pub, "GPS spoofing detected\t");
-		events::send(events::ID("commander_gps_spoofing_detected"), events::Log::Critical, "GPS spoofing detected");
+		_gps_spoofing_recovery.update();
 	}
 
 	// re-schedule as backup timeout

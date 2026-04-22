@@ -4,12 +4,21 @@
 #include <drivers/drv_hrt.h>
 #include <cinttypes>
 
+#include <lib/parameters/param.h>
+
 
 GpsSpoofingDetection::GpsSpoofingDetection() :
-	_spoofing_detected(false),
+	spoofing_detected(false),
 	_sensitivity_threshold(10.0),
 	_update_count(0)
 {
+	param_t param_handle = param_find("EKF2_GPS_CTRL");
+	if (param_handle != PARAM_INVALID) {
+		param_set(param_handle, "1");
+		PX4_INFO("EKF2 GPS fusion enabled");
+	} else {
+		PX4_ERR("Failed to find EKF2_GPS_CTRL parameter");
+	}
 }
 
 GpsSpoofingDetection::~GpsSpoofingDetection() = default;
@@ -63,8 +72,8 @@ bool GpsSpoofingDetection::checkForMissionResultUpdate() {
 }
 
 bool GpsSpoofingDetection::update() {
-	_spoofing_detected = analyzeSignal();
-	return _spoofing_detected;
+	spoofing_detected = analyzeSignal();
+	return spoofing_detected;
 }
 
 float GpsSpoofingDetection::opticalFlowDistance() {
@@ -147,8 +156,10 @@ void::GpsSpoofingDetection::calculateFlowPosition() {
 	_flow_lon_deg += delta_lon;
 }
 
-double* GpsSpoofingDetection::getFloatPosition() {
-	float flow_pos[2] = {_flow_lat_deg, _flow_lon_deg};
+double* GpsSpoofingDetection::getFlowPosition() {
+	double* flow_pos = new double[2];
+	flow_pos[0] = _flow_lat_deg;
+	flow_pos[1] = _flow_lon_deg;
 	return flow_pos;
 }
 
@@ -181,22 +192,22 @@ bool GpsSpoofingDetection::analyzeSignal() {
 
 			// CUSUM test
 			if ((CUSUM(of_distance, gps_distance))) {
-				PX4_ERR("CUSUM GPS SPOOFING DETECTED");
+				//PX4_ERR("CUSUM GPS SPOOFING DETECTED");
+				spoofing_detected = true;
+				return true;
 			}
 
-			PX4_INFO("gps_lat: %f, gps_lon: %f", _gps.latitude_deg, _gps.longitude_deg);
-			PX4_INFO("flow_lat: %f, flow_lon: %f", _flow_lat_deg, _flow_lon_deg);
-			PX4_INFO("diff_lat: %f, diff_lon: %f", _gps.latitude_deg - _flow_lat_deg, _gps.longitude_deg - _flow_lon_deg);
+			//PX4_INFO("gps_lat: %f, gps_lon: %f", _gps.latitude_deg, _gps.longitude_deg);
+			//PX4_INFO("flow_lat: %f, flow_lon: %f", _flow_lat_deg, _flow_lon_deg);
+			//PX4_INFO("diff_lat: %f, diff_lon: %f", _gps.latitude_deg - _flow_lat_deg, _gps.longitude_deg - _flow_lon_deg);
 		}
 
 
-		PX4_INFO("fx_vel: %f, fy_vel: %f, flow_dist: %f", (double) _optical_flow.vel_ne_filtered[0], (double) _optical_flow.vel_ne_filtered[1], (double) _total_distance_flow);
-		PX4_INFO("vel: %f, gps_dist: %f\n\n", (double) _gps.vel_m_s, (double) _total_distance_gps);
+		//PX4_INFO("fx_vel: %f, fy_vel: %f, flow_dist: %f", (double) _optical_flow.vel_ne_filtered[0], (double) _optical_flow.vel_ne_filtered[1], (double) _total_distance_flow);
+		//PX4_INFO("vel: %f, gps_dist: %f\n\n", (double) _gps.vel_m_s, (double) _total_distance_gps);
 
 
 	}
-
-	_spoofing_detected = GpsSpoofingDetection::SSDGOF();
 
 	return false;
 }

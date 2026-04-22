@@ -32,7 +32,7 @@ public:
 
 	bool SSDGOF();
 
-	double* getFloatPosition();
+	double* getFlowPosition();
 
 	float opticalFlowDistance();
 	double GPSDistance(double lon_a, double lat_a, double lon_b, double lat_b);
@@ -41,8 +41,8 @@ public:
 
 	void set_sensitivity(double threshold);
 
+	bool spoofing_detected;
 private:
-	bool _spoofing_detected;
 	double _sensitivity_threshold;
 
 	uint32_t _update_count;
