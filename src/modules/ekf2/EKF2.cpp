@@ -889,7 +889,7 @@ void EKF2::Run()
 
 	//BACH: CHANGES MADE HERE
 	_gps_spoofing_detection.update();
-	_gps_spoofing_recovery.update();
+	//_gps_spoofing_recovery.update();
 
 	// re-schedule as backup timeout
 	ScheduleDelayed(100_ms);

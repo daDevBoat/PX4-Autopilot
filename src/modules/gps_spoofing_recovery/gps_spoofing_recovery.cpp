@@ -19,7 +19,7 @@ bool GpsSpoofingRecovery::update() {
 
 		if (!_gps_disabled) {
 			param_t param_handle = param_find("EKF2_GPS_CTRL");
-			///*
+			/*
 			if (param_handle != PARAM_INVALID) {
 				int32_t disable_value = 0;
 				param_set(param_handle, &disable_value);
@@ -28,7 +28,7 @@ bool GpsSpoofingRecovery::update() {
 			} else {
 				PX4_ERR("Failed to find EKF2_GPS_CTRL parameter");
 			}
-			//*/
+			*/
 			param_handle = param_find("EKF2_AGP0_ID");
 			if (param_handle != PARAM_INVALID) {
 				int32_t aux_gps_id = 3; // ID for aux_global_position source
