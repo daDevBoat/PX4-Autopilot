@@ -862,8 +862,10 @@ void EKF2::Run()
 			}
 
 #if defined(CONFIG_EKF2_GNSS)
+		if (_param_ekf2_gps_ctrl.get()) {
 			PublishGpsStatus(now);
 			PublishYawEstimatorStatus(now);
+		}
 #endif // CONFIG_EKF2_GNSS
 
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
@@ -886,11 +888,8 @@ void EKF2::Run()
 
 
 	//BACH: CHANGES MADE HERE
-	bool spoofed = _gps_spoofing_detection.update();
-
-	if (spoofed) {
-		_gps_spoofing_recovery.update();
-	}
+	_gps_spoofing_detection.update();
+	_gps_spoofing_recovery.update();
 
 	// re-schedule as backup timeout
 	ScheduleDelayed(100_ms);

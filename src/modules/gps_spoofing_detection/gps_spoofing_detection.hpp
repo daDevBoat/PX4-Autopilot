@@ -53,8 +53,8 @@ private:
 
 	sensor_gps_s _initial_gps{};
 
-	double _flow_lon_deg{1000.0};
-	double _flow_lat_deg{1000.0};
+	double _flow_lon_deg{0.0};
+	double _flow_lat_deg{0.0};
 
 
 	sensor_gps_s _gps{};
@@ -67,6 +67,8 @@ private:
 
 	bool _ofv_valid{false};
 	bool _gps_valid{false};
+
+	bool _flow_pos_initialised{false};
 
 	double s_pos{0.0};
 	double s_neg{0.0};

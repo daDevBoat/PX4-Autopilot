@@ -6,6 +6,7 @@
 
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/topics/aux_global_position.h>
+#include <uORB/topics/sensor_gps.h>
 
 #include <gps_spoofing_detection/gps_spoofing_detection.hpp>
 
@@ -19,6 +20,7 @@ public:
 
 	bool update();
 	void publishAuxGlobalPosition();
+	void publishSensorGPS();
 
 
 private:
@@ -26,6 +28,8 @@ private:
 	bool _gps_disabled{false};
 
 	uORB::PublicationMulti<aux_global_position_s> _aux_global_position_pub{ORB_ID(aux_global_position)};
+	uORB::PublicationMulti<sensor_gps_s> _sensor_gps_pub{ORB_ID(sensor_gps)};
+
 };
 
 #endif // GPS_SPOOFING_RECOVERY_HPP

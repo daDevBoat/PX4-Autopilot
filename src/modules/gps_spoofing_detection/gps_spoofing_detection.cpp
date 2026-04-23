@@ -126,23 +126,24 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 }
 
 void::GpsSpoofingDetection::calculateFlowPosition() {
-	if (_flow_lat_deg > 360 && _flow_lon_deg > 360) {
+	if (!_flow_pos_initialised) {
 		if (_initial_gps.timestamp == 0) {
 			return;
 		}
 		_flow_lat_deg = _initial_gps.latitude_deg;
 		_flow_lon_deg = _initial_gps.longitude_deg;
+		_flow_pos_initialised = true;
 	}
 
 	float vel_x = _optical_flow.vel_ne_filtered[0];
 	float vel_y = _optical_flow.vel_ne_filtered[1];
 
-	if (vel_x <= 0.1f) {
-		vel_x = 0.0f;
+	if (fabsf(vel_x) < 0.1f) {
+    		vel_x = 0.0f;
 	}
 
-	if (vel_y <= 0.1f) {
-		vel_y = 0.0f;
+	if (fabsf(vel_y) < 0.1f) {
+    		vel_y = 0.0f;
 	}
 
 	double dt = (_optical_flow.timestamp_sample - _prev_optical_flow.timestamp_sample) / 1000000.0f;
