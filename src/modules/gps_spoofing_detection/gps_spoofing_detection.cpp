@@ -12,6 +12,7 @@ GpsSpoofingDetection::GpsSpoofingDetection() :
 	_sensitivity_threshold(10.0),
 	_update_count(0)
 {
+
 	param_t param_handle = param_find("EKF2_GPS_CTRL");
 	if (param_handle != PARAM_INVALID) {
 		int32_t default_value = 7;
@@ -20,6 +21,7 @@ GpsSpoofingDetection::GpsSpoofingDetection() :
 	} else {
 		PX4_ERR("Failed to find EKF2_GPS_CTRL parameter");
 	}
+
 }
 
 GpsSpoofingDetection::~GpsSpoofingDetection() = default;
@@ -73,7 +75,7 @@ bool GpsSpoofingDetection::checkForMissionResultUpdate() {
 }
 
 bool GpsSpoofingDetection::update() {
-	spoofing_detected = analyzeSignal();
+	analyzeSignal();
 	return spoofing_detected;
 }
 
@@ -106,8 +108,8 @@ bool GpsSpoofingDetection::SSDGOF() {
 }
 bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	double diff = of_distance - gps_distance;
-	double baseline_diff = 0; // -0.0041;
-	double k = 0.05; // smaller k = faster detection, more false alarms  K = 0.005
+	double baseline_diff = -0.00407; // -0.0041;
+	double k = 0.01306; // smaller k = faster detection, more false alarms  K = 0.005
 	double thresh = 2.5; // smaller threshold = faster detection, more false 2.2
 
 	PX4_INFO("CUSUM diff: %f", diff);
@@ -143,9 +145,9 @@ void::GpsSpoofingDetection::calculateFlowPosition() {
 
 	double dt = (t - t_prev) * 1e-6;
 
-	if (dt < 0.001 || dt > 0.2) {
-	_prev_optical_flow = _optical_flow;
-	return;
+	if (dt < 0.001 || dt > 1.0) {
+		_prev_optical_flow = _optical_flow;
+		return;
 	}
 
 	float vel_x = _optical_flow.vel_ne_filtered[0];
@@ -196,8 +198,16 @@ bool GpsSpoofingDetection::analyzeSignal() {
 	}
 
 	if (_ofv_valid && _gps_valid) {
-		float of_distance = GpsSpoofingDetection::opticalFlowDistance();
-		_total_distance_flow += of_distance;
+		float dx = _optical_flow.vel_ne_filtered[0];
+		float dy = _optical_flow.vel_ne_filtered[1];
+		float flow_velocity = sqrtf(dx * dx + dy * dy);
+		float of_distance = 0.f;
+
+
+		if (flow_velocity > 0.1f) {
+			of_distance = GpsSpoofingDetection::opticalFlowDistance();
+			_total_distance_flow += of_distance;
+		}
 
 		if (_gps.vel_m_s > 0.1f) {
 			double gps_distance = GpsSpoofingDetection::GPSDistance(_prev_gps.longitude_deg, _prev_gps.latitude_deg, _gps.longitude_deg, _gps.latitude_deg);

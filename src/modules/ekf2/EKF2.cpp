@@ -806,7 +806,9 @@ void EKF2::Run()
 		UpdateFlowSample(ekf2_timestamps);
 #endif // CONFIG_EKF2_OPTICAL_FLOW
 #if defined(CONFIG_EKF2_GNSS)
+	if (!_spoofed_gps_detected) {
 		UpdateGpsSample(ekf2_timestamps);
+	}
 #endif // CONFIG_EKF2_GNSS
 #if defined(CONFIG_EKF2_MAGNETOMETER)
 		UpdateMagSample(ekf2_timestamps);
@@ -856,13 +858,15 @@ void EKF2::Run()
 #endif // CONFIG_EKF2_EXTERNAL_VISION
 
 #if defined(CONFIG_EKF2_GNSS)
+			if (!_spoofed_gps_detected) {
 				PublishGnssHgtBias(now);
+			}
 #endif // CONFIG_EKF2_GNSS
 
 			}
 
 #if defined(CONFIG_EKF2_GNSS)
-		if (_param_ekf2_gps_ctrl.get()) {
+		if (!_spoofed_gps_detected) {
 			PublishGpsStatus(now);
 			PublishYawEstimatorStatus(now);
 		}
@@ -889,7 +893,17 @@ void EKF2::Run()
 
 	//BACH: CHANGES MADE HERE
 	_gps_spoofing_detection.update();
-	//_gps_spoofing_recovery.update();
+	_gps_spoofing_recovery.update();
+	//_spoofed_gps_detected = _gps_spoofing_detection.spoofing_detected;
+
+	/*
+	if(_spoofed_gps_detected) {
+		//PX4_INFO("%d - GPS spoofing detected, ignoring GPS measurements", _instance);
+		_param_ekf2_gps_ctrl.set(0); // disable GPS fusion
+		_param_ekf2_gps_ctrl.commit();
+	}
+	*/
+
 
 	// re-schedule as backup timeout
 	ScheduleDelayed(100_ms);

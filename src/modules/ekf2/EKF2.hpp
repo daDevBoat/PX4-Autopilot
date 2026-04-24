@@ -178,8 +178,12 @@ private:
 	void PublishAidSourceStatus(const hrt_abstime &timestamp);
 	void PublishAttitude(const hrt_abstime &timestamp);
 
+
+	//BACH: CHANGES MADE HERE
 	GpsSpoofingDetection _gps_spoofing_detection;
 	GpsSpoofingRecovery _gps_spoofing_recovery{_gps_spoofing_detection};
+
+	bool _spoofed_gps_detected{false};
 
 #if defined(CONFIG_EKF2_BAROMETER)
 	void PublishBaroBias(const hrt_abstime &timestamp);
