@@ -37,6 +37,8 @@
 #include <lib/geo/geo.h>
 #include <lib/mathlib/mathlib.h>
 #include <lib/drivers/device/Device.hpp>
+#include <lib/parameters/param.h>
+
 
 namespace sensors
 {
@@ -121,6 +123,22 @@ void VehicleGPSPosition::Run()
 	perf_begin(_cycle_perf);
 	ParametersUpdate();
 
+	//BACH: CHANGES MADE HERE
+	param_t param_spoof_act = param_find("GPS_SPOOF_ACT");
+	_gps_spoofing_status_sub.update(&_gps_spoofing_status);
+
+	bool reject_gps = false;
+
+	if (param_spoof_act != PARAM_INVALID) {
+		int act_on_spoof = 0;
+		param_get(param_spoof_act, &act_on_spoof);
+
+		if (act_on_spoof && _gps_spoofing_status.spoofing_detected && _gps_spoofing_status.action == gps_spoofing_status_s::SPOOFING_ACTION_REJECT_GPS) {
+			reject_gps = true;
+		}
+	}
+
+
 	pps_capture_s pps_capture;
 
 	if (_pps_capture_sub.update(&pps_capture)) {
@@ -189,7 +207,8 @@ void VehicleGPSPosition::Run()
 		}
 	}
 
-	if (any_gps_updated) {
+	//BACH: CHANGES MADE HERE
+	if (any_gps_updated && !reject_gps) {
 		_gps_blending.update(hrt_absolute_time());
 
 		if (_gps_blending.isNewOutputDataAvailable()) {

@@ -90,6 +90,7 @@
 #include <uORB/topics/yaw_estimator_status.h>
 
 #include <modules/gps_spoofing_detection/gps_spoofing_detection.hpp>
+#include <modules/gps_spoofing_recovery/gps_spoofing_recovery.hpp>
 
 #if defined(CONFIG_EKF2_AIRSPEED)
 # include <uORB/topics/airspeed.h>
@@ -106,6 +107,7 @@
 
 #if defined(CONFIG_EKF2_GNSS)
 # include <uORB/topics/estimator_gps_status.h>
+# include <uORB/topics/gps_spoofing_status.h>
 # include <uORB/topics/sensor_gps.h>
 #endif // CONFIG_EKF2_GNSS
 
@@ -177,7 +179,10 @@ private:
 	void PublishAidSourceStatus(const hrt_abstime &timestamp);
 	void PublishAttitude(const hrt_abstime &timestamp);
 
+
+	//BACH: CHANGES MADE HERE
 	GpsSpoofingDetection _gps_spoofing_detection;
+	GpsSpoofingRecovery _gps_spoofing_recovery{_gps_spoofing_detection};
 
 #if defined(CONFIG_EKF2_BAROMETER)
 	void PublishBaroBias(const hrt_abstime &timestamp);
@@ -499,6 +504,10 @@ private:
 	float _last_gnss_hgt_bias_published{};
 
 	uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
+
+	//BACH: CHANGES MADE HERE
+	uORB::Subscription _gps_spoofing_status_sub{ORB_ID(gps_spoofing_status)};
+	gps_spoofing_status_s _gps_spoofing_status{};
 
 	uORB::PublicationMulti<estimator_bias_s> _estimator_gnss_hgt_bias_pub{ORB_ID(estimator_gnss_hgt_bias)};
 	uORB::PublicationMulti<estimator_gps_status_s> _estimator_gps_status_pub{ORB_ID(estimator_gps_status)};

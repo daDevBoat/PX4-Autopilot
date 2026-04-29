@@ -1,0 +1,21 @@
+parameters:
+  - group: GPS_SPOOFING
+    definitions:
+      GPS_SPOOF_ACT:
+        description:
+          short: GPS spoofing detection enabled
+          long: If enabled, the GPS spoofing detection algorithm will be active.
+        type: boolean
+        default: 1
+      GPS_SPOOF_PLAN:
+        description:
+          short: Recovery plan on spoofing detection
+          long: Defines the recovery plan to execute when GPS spoofing is detected.
+        type: enum
+        values:
+          0: No action
+          1: Return to home
+          2: Continue mission
+          3: Land immediately
+        default: 1
+
