@@ -117,6 +117,8 @@ set(msg_files
 	GpioRequest.msg
 	GpsDump.msg
 	GpsInjectData.msg
+	# BACH: CHANGES MADE HERE
+	GpsSpoofingStatus.msg
 	Gripper.msg
 	HealthReport.msg
 	HeaterStatus.msg
