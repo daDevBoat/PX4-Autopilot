@@ -97,12 +97,30 @@ bool GpsSpoofingDetection::SSDGOF() {
 }
 bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	double diff = of_distance - gps_distance;
-	double baseline_diff = 0;
-	double k = 0.05; // smaller k = faster detection, more false alarms
-	double thresh = 1.5; // smaller threshold = faster detection, more false
+	double baseline_diff = -0.004073260416666667;
+	/* standard deviation of the difference about std_diff = 0.11901189104473191
+	when k = 0,1235. we ignore about one standard deviation of normal OF-GPS difference per sample*/
+	double k = 0.0015; // smaller k = faster detection, more false alarms
+	/* max CUSUM reached in control flights was about 1.347, so pick a threshold slightly above this */
+	double thresh = 6.819999999999999; // smaller threshold = faster detection, more false
+	bool spoofing_detected = false;
 
-	// LOGGING 
-	/*const char *path = "/home/isabella-lopiano/bachelor-project/PX4-Autopilot/gps_spoofing_log.csv";
+	
+	//LOGGING 
+	const char *path = "/home/isabella-lopiano/bachelor-project/PX4-Autopilot/active_gps_spoofing_log_turn.csv";
+
+	
+	
+	PX4_INFO("CUSUM diff: %f", diff);
+	
+	s_pos = std::max(0.0, s_pos + diff - baseline_diff - k);
+	s_neg = std::max(0.0, s_neg - diff + baseline_diff - k);
+	
+	PX4_INFO("CUSUM s_pos: %f, s_neg: %f", s_pos, s_neg);
+	
+	if (s_pos > thresh || s_neg > thresh) {
+		spoofing_detected = true;
+	}
 
 	FILE *fp = fopen(path, "a");
 
@@ -111,24 +129,32 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 		return false;
 	}
 
-	fprintf(fp, "%.6f,%.6f,%.6f\n",
+	if (first_run) {
+		fprintf(fp, "%.6f,%.6f,%.6f,%f,%.6f,%.6f\n",
+			0.0,
+			0.0,
+			0.0,
+			0.0,
+			0.0,
+			0.0);
+			first_run = false;
+	}
+
+	fprintf(fp, "%.6f,%.6f,%.6f,%d,%.6f,%.6f\n",
 		of_distance,
 		gps_distance,
-		diff);
+		diff,
+		spoofing_detected ? 1 : 0,
+		s_pos,
+		s_neg);
 
 	fclose(fp);
-	*/
 
-	PX4_INFO("CUSUM diff: %f", diff);
 
-	s_pos = std::max(0.0, s_pos + diff - baseline_diff - k);
-	s_neg = std::max(0.0, s_neg - diff + baseline_diff - k);
-
-	PX4_INFO("CUSUM s_pos: %f, s_neg: %f", s_pos, s_neg);
-
-	if (s_pos > thresh || s_neg > thresh) {
-		return true; // spoofing detected
+	if (spoofing_detected) {
+		return true;
 	}
+
 	return false; // no spoofing detected
 }
 
