@@ -897,16 +897,6 @@ void EKF2::Run()
 		_gps_spoofing_recovery.update();
 	}
 
-
-	/*
-	if(_spoofed_gps_detected) {
-		//PX4_INFO("%d - GPS spoofing detected, ignoring GPS measurements", _instance);
-		_param_ekf2_gps_ctrl.set(0); // disable GPS fusion
-		_param_ekf2_gps_ctrl.commit();
-	}
-	*/
-
-
 	// re-schedule as backup timeout
 	ScheduleDelayed(100_ms);
 }
@@ -2642,27 +2632,16 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 	param_t param_spoof_act = param_find("GPS_SPOOF_ACT");
 	_gps_spoofing_status_sub.update(&_gps_spoofing_status);
 
-	bool reject_gps = false;
-
 	if (param_spoof_act != PARAM_INVALID) {
 		int act_on_spoof = 0;
 		param_get(param_spoof_act, &act_on_spoof);
 
 		if (act_on_spoof && _gps_spoofing_status.spoofing_detected && _gps_spoofing_status.action == gps_spoofing_status_s::SPOOFING_ACTION_REJECT_GPS) {
-			reject_gps = true;
+			return;
 		}
 	}
 
-	if (reject_gps) {
-		return;
-	}
-
 	if (_vehicle_gps_position_sub.update(&vehicle_gps_position)) {
-
-		//BACH: CHANGES MADE HERE
-		//if (vehicle_gps_position.spoofing_state == sensor_gps_s::SPOOFING_STATE_DETECTED) {
-		//	return;
-		//}
 
 		Vector3f vel_ned;
 

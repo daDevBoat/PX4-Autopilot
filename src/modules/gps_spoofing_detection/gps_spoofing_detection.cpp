@@ -4,6 +4,11 @@
 #include <drivers/drv_hrt.h>
 #include <cinttypes>
 
+#include <iostream>
+#include <fstream>
+#include <ctime>
+#include <px4_platform_common/log.h>
+
 #include <lib/parameters/param.h>
 #include <modules/commander/px4_custom_mode.h>
 
@@ -28,6 +33,20 @@ GpsSpoofingDetection::GpsSpoofingDetection() :
 	if (_gps_spoof_plan_param == PARAM_INVALID) {
 		PX4_ERR("Failed to find GPS_SPOOF_PLAN parameter");
 	}
+
+	time_t now = time(nullptr);
+
+    	struct tm utc_time {};
+    	gmtime_r(&now, &utc_time);   // PX4 time is usually treated as UTC
+
+    	char buffer[32];
+    	strftime(buffer, sizeof(buffer), "%Y_%m_%d-%H_%M_%S", &utc_time);
+
+    	PX4_INFO("Current date/time: %s", buffer);
+
+	std::string log_filename = "/home/dadevboat/PX4_research/PX4-Autopilot/src/modules/gps_spoofing_detection/logs/"
+    + std::string(buffer) + ".txt";
+	_output_file.open(log_filename.c_str(), std::ios::out | std::ios::app);
 
 }
 
@@ -184,7 +203,7 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	double diff = of_distance - gps_distance;
 	double baseline_diff = -0.00407; // -0.0041;
 	double k = 0.01306; // smaller k = faster detection, more false alarms  K = 0.005
-	double thresh = 2.5; // smaller threshold = faster detection, more false 2.2
+	double thresh = 25; // smaller threshold = faster detection, more false 2.2
 
 	PX4_INFO("CUSUM diff: %f", diff);
 
@@ -198,6 +217,34 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	}
 	return false; // no spoofing detected
 }
+
+
+bool GpsSpoofingDetection::AdaptiveCUSUM(double of_distance, double gps_distance) {
+	/*
+	double diff = of_distance - gps_distance;
+	double k = 0.01306; // smaller k = faster detection, more false alarms
+	double thresh = 2.5; // smaller threshold = faster detection, more false 2
+	double baseline_diff = -0.00407; // -0.0041;
+	*/
+
+	if (_vehicle_imu_sub.update()) {
+		_prev_imu = _imu;
+		_imu = _vehicle_imu_sub.get();
+	}
+
+	if (_estimator_innovations_sub.update()) {
+		_estimator_innovations = _estimator_innovations_sub.get();
+	}
+
+	if (_vehicle_attitude_sub.update()) {
+		_prev_vehicle_attitude = _vehicle_attitude;
+		_vehicle_attitude = _vehicle_attitude_sub.get();
+	}
+
+
+	return false; // no spoofing detected
+}
+
 
 void::GpsSpoofingDetection::calculateFlowPosition() {
 	if (!_flow_pos_initialised) {
@@ -287,12 +334,78 @@ void GpsSpoofingDetection::analyzeSignal() {
 			double gps_distance = GpsSpoofingDetection::GPSDistance(_prev_gps.longitude_deg, _prev_gps.latitude_deg, _gps.longitude_deg, _gps.latitude_deg);
 			_total_distance_gps += gps_distance;
 
+			//double prev_sneg = s_neg;
+			//double prev_spos = s_pos;
+
 			// CUSUM test
 			if ((CUSUM(of_distance, gps_distance))) {
 				PX4_ERR("CUSUM GPS SPOOFING DETECTED");
 				spoofing_detected = true;
 			}
 
+			AdaptiveCUSUM(of_distance, gps_distance);
+
+			if (!_output_file.is_open()) {
+				PX4_ERR("Error opening output file!");
+			}
+
+			/*
+			_output_file << _estimator_innovations.flow[0] << "\t"
+						<< (double) of_distance - gps_distance << "\n";
+			*/
+
+
+
+			/*
+			_output_file << (int) _imu.delta_angle[0] * 1000 << "\t"
+			<< (int) _imu.delta_angle[1] * 1000 << "\t"
+			<< (int) _imu.delta_angle[2] * 1000 << "\t"
+			<< abs((double) of_distance - gps_distance) << "\n";
+			*/
+
+			_data_counter++;
+
+			matrix::Quatf q(_vehicle_attitude.q);
+  			matrix::Eulerf euler(q);
+
+  			float roll = euler.phi();
+  			float pitch = euler.theta();
+  			float yaw = euler.psi();
+
+			matrix::Quatf prev_q(_prev_vehicle_attitude.q);
+  			matrix::Eulerf prev_euler(prev_q);
+
+  			float prev_roll = prev_euler.phi();
+  			float prev_pitch = prev_euler.theta();
+  			float prev_yaw = prev_euler.psi();
+
+			double diff = abs((double) of_distance - gps_distance);
+
+			float roll_diff = abs(roll - prev_roll);
+			float pitch_diff = abs(pitch - prev_pitch);
+			float yaw_diff = abs(yaw - prev_yaw);
+
+			_diff_sum += diff;
+			_roll_sum += roll_diff;
+			_pitch_sum += pitch_diff;
+			_yaw_sum += yaw_diff;
+
+
+			if (_data_counter == 10) {
+				//_output_file << sqrt(roll_diff * roll_diff + pitch_diff * pitch_diff + yaw_diff * yaw_diff) << "\t" << diff << "\n";
+				//_output_file << sqrt(_roll_sum * _roll_sum + _pitch_sum * _pitch_sum + _yaw_sum * _yaw_sum) << "\t" << _diff_sum << "\n";
+				_output_file << _roll_sum << "\t" << _diff_sum << "\n";
+				_data_counter = 0;
+				_roll_sum = 0.f;
+				_pitch_sum = 0.f;
+				_yaw_sum = 0.f;
+				_diff_sum = 0.f;
+			}
+
+
+			_output_file.flush();
+			//PX4_INFO("IMU   x: %f, y: %f, z: %f", (double) _imu.delta_angle[0] * 1000,  (double) _imu.delta_angle[1] * 1000, (double) _imu.delta_angle[2] * 1000);
+			//PX4_INFO("Attitude: roll: %f, pitch: %f, yaw: %f", (double) roll, (double) pitch, (double) yaw);
 			PX4_INFO("gps_lat: %f, gps_lon: %f", _gps.latitude_deg, _gps.longitude_deg);
 			PX4_INFO("diff_lat: %f, diff_lon: %f", _gps.latitude_deg - _flow_lat_deg, _gps.longitude_deg - _flow_lon_deg);
 		}
