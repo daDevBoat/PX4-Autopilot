@@ -207,6 +207,7 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 		spoofing_detected = true;
 	}
 
+<<<<<<< Updated upstream
 	FILE *fp = fopen(path, "a");
 
 	if (fp == nullptr) {
@@ -239,6 +240,8 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	if (spoofing_detected) {
 		return true;
 	}
+=======
+>>>>>>> Stashed changes
 
 	return false; // no spoofing detected
 }
