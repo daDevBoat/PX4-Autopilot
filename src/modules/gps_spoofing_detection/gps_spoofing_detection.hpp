@@ -14,6 +14,7 @@
 #include <uORB/topics/gps_spoofing_status.h>
 #include <uORB/topics/mission_result.h>
 #include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/vehicle_attitude.h>
 #include <lib/geo/geo.h>
 #include <lib/parameters/param.h>
 
@@ -67,6 +68,8 @@ private:
 	vehicle_optical_flow_vel_s _optical_flow{};
 	vehicle_optical_flow_vel_s _prev_optical_flow{};
 
+	vehicle_attitude_s _vehicle_attitude{};
+
 	mission_result_s _mission_result{};
 
 	bool _ofv_valid{false};
@@ -77,6 +80,9 @@ private:
 	double s_pos{0.0};
 	double s_neg{0.0};
 
+	float _gyro_magnitude = 0.f;
+	float _prev_gyro_magnitude = 0.f;
+
 	bool first_run = true;
 
 
@@ -86,6 +92,7 @@ private:
 	uORB::SubscriptionData<vehicle_optical_flow_vel_s> _vehicle_optical_flow_vel_sub {ORB_ID(estimator_optical_flow_vel)};
 	uORB::SubscriptionData<sensor_gps_s> _vehicle_gps_position_sub {ORB_ID(sensor_gps)};
 	uORB::SubscriptionData<mission_result_s> _mission_result_sub {ORB_ID(mission_result)};
+	uORB::SubscriptionData<vehicle_attitude_s> _vehicle_attitude_sub {ORB_ID(vehicle_attitude)};
 
 	uORB::Publication<gps_spoofing_status_s> _gps_spoofing_status_pub {ORB_ID(gps_spoofing_status)};
 	uORB::Publication<vehicle_command_s> _vehicle_command_pub {ORB_ID(vehicle_command)};

@@ -190,24 +190,39 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	double thresh = 6.819999999999999; // smaller threshold = faster detection, more false
 	bool spoofing_detected = false;
 
-	
-	//LOGGING 
+
+	//LOGGING
 	const char *path = "/home/isabella-lopiano/bachelor-project/PX4-Autopilot/active_gps_spoofing_log_turn.csv";
 
-	
-	
+
+
 	PX4_INFO("CUSUM diff: %f", diff);
-	
+
 	s_pos = std::max(0.0, s_pos + diff - baseline_diff - k);
 	s_neg = std::max(0.0, s_neg - diff + baseline_diff - k);
-	
+
 	PX4_INFO("CUSUM s_pos: %f, s_neg: %f", s_pos, s_neg);
-	
+
 	if (s_pos > thresh || s_neg > thresh) {
 		spoofing_detected = true;
 	}
 
-<<<<<<< Updated upstream
+
+	if (_vehicle_attitude_sub.update()) {
+		_prev_vehicle_attitude = _vehicle_attitude;
+		_vehicle_attitude = _vehicle_attitude_sub.get();
+	}
+
+	matrix::Quatf q(_vehicle_attitude.q);
+	matrix::Eulerf euler(q);
+
+	float roll = euler.phi();
+	float pitch = euler.theta();
+	float yaw = euler.psi();
+
+	_prev_gyro_magnitude = _gyro_magnitude;
+	_gyro_magnitude = sqrt(roll * roll + pitch * pitch + yaw * yaw);
+
 	FILE *fp = fopen(path, "a");
 
 	if (fp == nullptr) {
@@ -216,13 +231,17 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	}
 
 	if (first_run) {
-		fprintf(fp, "%.6f,%.6f,%.6f,%f,%.6f,%.6f\n",
+		fprintf(fp, "%.6f,%.6f,%.6f,%f,%.6f,%.6f,%.6f,%.6f,%.6f,\n",
 			0.0,
 			0.0,
 			0.0,
 			0.0,
 			0.0,
-			0.0);
+			0.0,
+			0.0,
+			0.0,
+			0.0
+		);
 			first_run = false;
 	}
 
@@ -232,7 +251,10 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 		diff,
 		spoofing_detected ? 1 : 0,
 		s_pos,
-		s_neg);
+		s_neg,
+		_gyro_magnitude,
+		_prev_gyro_magnitude
+	);
 
 	fclose(fp);
 
@@ -240,8 +262,6 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	if (spoofing_detected) {
 		return true;
 	}
-=======
->>>>>>> Stashed changes
 
 	return false; // no spoofing detected
 }
