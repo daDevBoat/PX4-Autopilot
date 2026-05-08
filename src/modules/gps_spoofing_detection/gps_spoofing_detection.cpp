@@ -121,8 +121,6 @@ void GpsSpoofingDetection::calculateGyroDeltaMagnitude() {
 
 	if (_gyro_cusum_initalised) {
 		CUSUM_GYRO(_gyro_magnitude, _prev_gyro_magnitude);
-		_output_file << _s_mag << "\t" << std::max(_s_pos, _s_neg) << "\n";
-		_output_file.flush();
 	} else {
 		_gyro_cusum_initalised = true;
 	}
@@ -230,8 +228,8 @@ bool GpsSpoofingDetection::SSDGOF() {
 
 bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	double diff = of_distance - gps_distance;
-	double baseline_diff = -0.0041;
-	double k = 0.01306;
+	double baseline_diff = 0.0132;
+	double k = 0.060;
 	double thresh = 2.2;
 
 	PX4_INFO("CUSUM diff: %f", diff);
@@ -248,9 +246,9 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 }
 
 void GpsSpoofingDetection::CUSUM_GYRO(float mag, float prev_mag) {
-	float diff = abs(mag - prev_mag) * 1.5f;
-	float baseline_diff = 0.f;
-	float k = 0.015f * 2.f;
+	float diff = abs(mag - prev_mag);
+	float baseline_diff = 0.026f;
+	float k = 0.02077f;
 
 
 	_s_mag = std::max(0.f, _s_mag + diff - baseline_diff - k);
@@ -259,9 +257,9 @@ void GpsSpoofingDetection::CUSUM_GYRO(float mag, float prev_mag) {
 
 bool GpsSpoofingDetection::AdaptiveCUSUM(double of_distance, double gps_distance, double thresh) {
 	double diff = of_distance - gps_distance;
-	double k = 0.01306; // smaller k = faster detection, more false alarms
-	double baseline_diff = -0.0041;
-	thresh = std::max(2.2, thresh);
+	double k = 0.06;
+	double baseline_diff = 0.0132;
+	thresh = std::max(1.5, thresh);
 
 	_adapt_s_pos = std::max(0.0, _adapt_s_pos + diff - baseline_diff - k);
 	_adapt_s_neg = std::max(0.0, _adapt_s_neg - diff + baseline_diff - k);
@@ -331,7 +329,7 @@ double* GpsSpoofingDetection::getFlowPosition() {
 
 
 void GpsSpoofingDetection::analyzeSignal() {
-	
+
 	if((hrt_absolute_time() - _gps.timestamp_sample) < 200000 || (hrt_absolute_time() - _optical_flow.timestamp_sample) < 200000) {
 		return;
 	}
@@ -357,49 +355,6 @@ void GpsSpoofingDetection::analyzeSignal() {
 		if (_gps.vel_m_s > 0.1f) {
 			gps_distance = GpsSpoofingDetection::GPSDistance(_prev_gps.longitude_deg, _prev_gps.latitude_deg, _gps.longitude_deg, _gps.latitude_deg);
 			_total_distance_gps += gps_distance;
-
-
-			/*
-			matrix::Quatf prev_q(_prev_vehicle_attitude.q);
-  			matrix::Eulerf prev_euler(prev_q);
-
-  			float prev_roll = prev_euler.phi();
-  			float prev_pitch = prev_euler.theta();
-  			float prev_yaw = prev_euler.psi();
-
-			  double diff = abs((double) of_distance - gps_distance);
-
-			  float roll_diff = abs(roll - prev_roll);
-			  float pitch_diff = abs(pitch - prev_pitch);
-			  float yaw_diff = abs(yaw - prev_yaw);
-
-			  _diff_sum += diff;
-			  _roll_sum += roll_diff;
-			  _pitch_sum += pitch_diff;
-			  _yaw_sum += yaw_diff;
-
-
-			  if (_data_counter == 10) {
-				//_output_file << sqrt(roll_diff * roll_diff + pitch_diff * pitch_diff + yaw_diff * yaw_diff) << "\t" << diff << "\n";
-				//_output_file << sqrt(_roll_sum * _roll_sum + _pitch_sum * _pitch_sum + _yaw_sum * _yaw_sum) << "\t" << _diff_sum << "\n";
-				//_output_file << _roll_sum << "\t" << _diff_sum << "\n";
-				_data_counter = 0;
-				_roll_sum = 0.f;
-				_pitch_sum = 0.f;
-				_yaw_sum = 0.f;
-				_diff_sum = 0.f;
-				}
-
-				_output_file << sqrt(roll * roll + pitch * pitch + yaw * yaw) << "\t" << sqrt(prev_roll * prev_roll + prev_pitch * prev_pitch + prev_yaw * prev_yaw) << "\n";
-				_output_file.flush();
-				*/
-
-			//PX4_INFO("Errors - ang: %f, vel: %f, pos: %f", (double) _estimator_status.output_tracking_error[0], (double) _estimator_status.output_tracking_error[1], (double) _estimator_status.output_tracking_error[2]);
-
-			//PX4_INFO("IMU   x: %f, y: %f, z: %f", (double) _imu.delta_angle[0] * 1000,  (double) _imu.delta_angle[1] * 1000, (double) _imu.delta_angle[2] * 1000);
-			//PX4_INFO("Attitude: roll: %f, pitch: %f, yaw: %f", (double) roll, (double) pitch, (double) yaw);
-			//PX4_INFO("gps_lat: %f, gps_lon: %f", _gps.latitude_deg, _gps.longitude_deg);
-			//PX4_INFO("diff_lat: %f, diff_lon: %f", _gps.latitude_deg - _flow_lat_deg, _gps.longitude_deg - _flow_lon_deg);
 		}
 
 
@@ -419,7 +374,12 @@ void GpsSpoofingDetection::analyzeSignal() {
 
 			calculateGyroDeltaMagnitude();
 
-			if (AdaptiveCUSUM((double) of_distance, gps_distance, (double) (_s_mag * _adapt_thresh_scalar))) {
+			//_output_file << of_distance << "\t" << gps_distance << "\n";
+			_output_file << _gyro_magnitude << "\t" << _prev_gyro_magnitude << "\t" << of_distance << "\t" << gps_distance << "\n";
+			_output_file.flush();
+
+
+			if (AdaptiveCUSUM((double) of_distance, gps_distance, (double) (_s_mag))) {
 				_adaptive_consecutive_spoofing_hits++;
 				if (_adaptive_consecutive_spoofing_hits >= _hits_threshold) {
 					PX4_ERR("ADAPTIVE CUSUM GPS SPOOFING DETECTED");
