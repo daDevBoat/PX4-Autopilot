@@ -1,4 +1,3 @@
-
 #include "gps_spoofing_detection.hpp"
 #include <cmath>
 #include <drivers/drv_hrt.h>
@@ -12,13 +11,14 @@
 #include <lib/parameters/param.h>
 #include <modules/commander/px4_custom_mode.h>
 
+#define LOGGING_ENABLED 1
 
 GpsSpoofingDetection::GpsSpoofingDetection() :
 	spoofing_detected(false),
 	_sensitivity_threshold(10.0),
 	_update_count(0),
 	_adapt_thresh_scalar(1.0f),
-	_hits_threshold(3)
+	_hits_threshold(1)
 {
 
 	param_t param_handle = param_find("EKF2_GPS_CTRL");
@@ -46,9 +46,34 @@ GpsSpoofingDetection::GpsSpoofingDetection() :
 
     	PX4_INFO("Current date/time: %s", buffer);
 
-	std::string log_filename = "/home/dadevboat/PX4_research/PX4-Autopilot/src/modules/gps_spoofing_detection/logs/"
-    + std::string(buffer) + ".txt";
+	if (LOGGING_ENABLED) {
+
+    	const std::string counter_filename = "/home/dadevboat/PX4_research/PX4-Autopilot/src/modules/gps_spoofing_detection/flight_logs/counter.txt";
+    	std::ifstream inFile(counter_filename);
+
+	if (!inFile) {
+		std::cerr << "Could not open counter file for reading\n";
+	}
+
+	std::string firstLine;
+	std::getline(inFile, firstLine);
+	int counter = atoi(firstLine.c_str());
+	counter++;
+	inFile.close();
+
+    	std::ofstream outFile(counter_filename);
+
+	if (!outFile) {
+		std::cerr << "Could not open file for writing\n";
+	}
+
+	outFile << counter;
+	outFile.flush();
+	outFile.close();
+
+	std::string log_filename = "/home/dadevboat/PX4_research/PX4-Autopilot/src/modules/gps_spoofing_detection/flight_logs/final_control/" + std::to_string(counter) + ".csv";
 	_output_file.open(log_filename.c_str(), std::ios::out | std::ios::app);
+	}
 
 }
 
@@ -230,7 +255,7 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	double diff = of_distance - gps_distance;
 	double baseline_diff = 0.0132;
 	double k = 0.060;
-	double thresh = 2.2;
+	double thresh = 2.9;
 
 	PX4_INFO("CUSUM diff: %f", diff);
 
@@ -240,6 +265,26 @@ bool GpsSpoofingDetection::CUSUM(double of_distance, double gps_distance) {
 	PX4_INFO("CUSUM s_pos: %f, s_neg: %f", _s_pos, _s_neg);
 
 	if (_s_pos > thresh || _s_neg > thresh) {
+		return true; // spoofing detected
+	}
+	return false; // no spoofing detected
+}
+
+bool GpsSpoofingDetection::NORMALISED_CUSUM(double of_distance, double gps_distance) {
+	double diff = of_distance - gps_distance;
+	double k = 0.25;
+	double mean = 0.01285;
+	double sd = 0.136;
+	double thresh = 20.15;
+
+	//PX4_INFO("CUSUM diff: %f", diff);
+
+	_s_pos_norm = std::max(0.0, _s_pos_norm + (diff - mean) / sd - k);
+	_s_neg_norm = std::max(0.0, _s_neg_norm - (diff - mean) / sd - k);
+
+	PX4_INFO("NORMALISED CUSUM s_pos: %f, s_neg: %f", _s_pos_norm, _s_neg_norm);
+
+	if (_s_pos_norm > thresh || _s_neg_norm > thresh) {
 		return true; // spoofing detected
 	}
 	return false; // no spoofing detected
@@ -348,7 +393,8 @@ void GpsSpoofingDetection::analyzeSignal() {
 		float of_distance = 0.f;
 		double gps_distance = 0.0;
 
-		if (!_output_file.is_open()) {
+
+		if (!_output_file.is_open() && LOGGING_ENABLED) {
 			PX4_ERR("Error opening output file!");
 		}
 
@@ -362,6 +408,7 @@ void GpsSpoofingDetection::analyzeSignal() {
 			of_distance = GpsSpoofingDetection::opticalFlowDistance();
 			_total_distance_flow += of_distance;
 
+			/*
 			if ((CUSUM((double) of_distance, gps_distance))) {
 				_consecutive_spoofing_hits++;
 				if (_consecutive_spoofing_hits >= _hits_threshold) {
@@ -371,14 +418,20 @@ void GpsSpoofingDetection::analyzeSignal() {
 			} else {
 				_consecutive_spoofing_hits = 0;
 			}
+			*/
+
+			if ((NORMALISED_CUSUM((double) of_distance, gps_distance))) {
+				PX4_ERR("NORMALISED CUSUM GPS SPOOFING DETECTED");
+			}
 
 			calculateGyroDeltaMagnitude();
 
-			//_output_file << of_distance << "\t" << gps_distance << "\n";
-			_output_file << _gyro_magnitude << "\t" << _prev_gyro_magnitude << "\t" << of_distance << "\t" << gps_distance << "\n";
-			_output_file.flush();
-
-
+			if (LOGGING_ENABLED) {
+				//_output_file << of_distance << "\t" << gps_distance << "\n";
+				_output_file << of_distance << "," << gps_distance << "," << _gyro_magnitude << "," << _prev_gyro_magnitude << "," << hrt_absolute_time() << "\n";
+				_output_file.flush();
+			}
+			/*
 			if (AdaptiveCUSUM((double) of_distance, gps_distance, (double) (_s_mag))) {
 				_adaptive_consecutive_spoofing_hits++;
 				if (_adaptive_consecutive_spoofing_hits >= _hits_threshold) {
@@ -388,6 +441,7 @@ void GpsSpoofingDetection::analyzeSignal() {
 			} else {
 				_adaptive_consecutive_spoofing_hits = 0;
 			}
+			*/
 
 
 

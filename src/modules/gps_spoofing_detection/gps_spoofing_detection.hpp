@@ -39,6 +39,7 @@ public:
 
 	bool CUSUM(double of_distance, double gps_distance);
 	bool AdaptiveCUSUM(double of_distance, double gps_distance, double threshold);
+	bool NORMALISED_CUSUM(double of_distance, double gps_distance);
 	bool SSDGOF();
 	void CUSUM_GYRO(float mag, float prev_mag);
 
@@ -99,6 +100,8 @@ private:
 	double _s_neg{0.0};
 	double _adapt_s_pos{0.0};
 	double _adapt_s_neg{0.0};
+	double _s_pos_norm{0.0};
+	double _s_neg_norm{0.0};
 
 	double _flow_pos[2];
 
